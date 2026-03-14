@@ -87,9 +87,12 @@ if _allowed_origins_env.strip():
 else:
     _allowed_origins = _default_origins
 
+_allowed_origin_regex = os.getenv("ALLOWED_ORIGIN_REGEX", r"https://.*\.vercel\.app")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
+    allow_origin_regex=_allowed_origin_regex,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
