@@ -20,6 +20,17 @@ _DATASET_PATH = os.path.join(
 dataset: Optional[pd.DataFrame] = None
 
 
+def _parse_int_env(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        value = int(raw)
+        return value if value > 0 else default
+    except ValueError:
+        return default
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global dataset
@@ -27,13 +38,19 @@ async def lifespan(app: FastAPI):
         # Load only the columns required by the recommendation pipeline and API
         # response, and use compact float dtypes to reduce memory on low-RAM
         # hosts (e.g., Render free instances).
+        # DATASET_MAX_ROWS allows tuning memory usage by limiting loaded rows.
+        # LOAD_RECIPE_INSTRUCTIONS=false skips a very large text column.
+        max_rows = _parse_int_env("DATASET_MAX_ROWS", 120000)
+        load_instructions = os.getenv("LOAD_RECIPE_INSTRUCTIONS", "false").lower() == "true"
         usecols = [
             'RecipeId', 'Name', 'CookTime', 'PrepTime', 'TotalTime',
             'RecipeIngredientParts', 'Calories', 'FatContent',
             'SaturatedFatContent', 'CholesterolContent', 'SodiumContent',
             'CarbohydrateContent', 'FiberContent', 'SugarContent',
-            'ProteinContent', 'RecipeInstructions'
+            'ProteinContent'
         ]
+        if load_instructions:
+            usecols.append('RecipeInstructions')
         dtype_map = {
             'Calories': 'float32',
             'FatContent': 'float32',
@@ -50,7 +67,10 @@ async def lifespan(app: FastAPI):
             compression='gzip',
             usecols=usecols,
             dtype=dtype_map,
+            nrows=max_rows,
         )
+        if 'RecipeInstructions' not in dataset.columns:
+            dataset['RecipeInstructions'] = '[]'
     yield
 
 

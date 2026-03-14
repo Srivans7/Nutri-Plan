@@ -60,6 +60,8 @@ def recommend(dataframe, _input, ingredients=[], params={'n_neighbors': 5, 'retu
 
 
 def extract_quoted_strings(s):
+    if not isinstance(s, str):
+        return []
     return re.findall(r'"([^"]*)"', s)
 
 
@@ -68,9 +70,9 @@ def output_recommended_recipes(dataframe):
         return None
     output = dataframe.to_dict("records")
     for recipe in output:
-        recipe['RecipeIngredientParts'] = extract_quoted_strings(recipe['RecipeIngredientParts'])
-        recipe['RecipeInstructions'] = extract_quoted_strings(recipe['RecipeInstructions'])
+        recipe['RecipeIngredientParts'] = extract_quoted_strings(recipe.get('RecipeIngredientParts'))
+        recipe['RecipeInstructions'] = extract_quoted_strings(recipe.get('RecipeInstructions'))
         # Dataset stores time fields as integers; coerce to str for Pydantic v2 compatibility.
         for time_field in ('CookTime', 'PrepTime', 'TotalTime'):
-            recipe[time_field] = str(recipe[time_field])
+            recipe[time_field] = str(recipe.get(time_field, ''))
     return output
