@@ -11,15 +11,41 @@ export class ApiError extends Error {
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new ApiError(res.status, body);
+  if (import.meta.env.PROD && !BASE_URL) {
+    throw new ApiError(
+      500,
+      "Frontend is missing VITE_API_URL. Set it in Vercel Environment Variables and redeploy.",
+    );
   }
-  return res.json() as Promise<T>;
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      headers: { "Content-Type": "application/json" },
+      ...init,
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      "Network error while contacting API. Check backend URL, CORS (ALLOWED_ORIGINS), and backend health.",
+    );
+  }
+
+  const contentType = res.headers.get("content-type") ?? "";
+  const bodyText = await res.text();
+
+  if (!res.ok) {
+    throw new ApiError(res.status, bodyText || `Request failed with status ${res.status}`);
+  }
+
+  if (!contentType.includes("application/json")) {
+    throw new ApiError(
+      502,
+      "API returned non-JSON response. Verify VITE_API_URL points to backend (Render), not frontend (Vercel).",
+    );
+  }
+
+  return JSON.parse(bodyText) as T;
 }
 
 export interface PredictRequest {
