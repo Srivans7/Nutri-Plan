@@ -3,8 +3,11 @@ services:
     name: diet-backend
     env: python
     plan: free
-    buildCommand: pip install -r FastAPI_Backend/requirements.txt
-    startCommand: cd FastAPI_Backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    rootDir: FastAPI_Backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
       - key: ALLOWED_ORIGINS
         value: https://YOUR_VERCEL_DOMAIN
