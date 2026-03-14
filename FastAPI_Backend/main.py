@@ -1,5 +1,4 @@
 import os
-import re
 from contextlib import asynccontextmanager
 from typing import Annotated, List, Literal, Optional
 
@@ -25,12 +24,32 @@ dataset: Optional[pd.DataFrame] = None
 async def lifespan(app: FastAPI):
     global dataset
     if dataset is None:
-        # Pre-process ingredient strings into frozensets once at startup.
-        # Enables fast set-based filtering in extract_ingredient_filtered_data()
-        # instead of scanning every row with a compound regex on each request.
-        dataset = pd.read_csv(_DATASET_PATH, compression='gzip')
-        dataset['_ingredients_parsed'] = dataset['RecipeIngredientParts'].apply(
-            lambda x: frozenset(s.lower() for s in re.findall(r'"([^"]*)"', x))
+        # Load only the columns required by the recommendation pipeline and API
+        # response, and use compact float dtypes to reduce memory on low-RAM
+        # hosts (e.g., Render free instances).
+        usecols = [
+            'RecipeId', 'Name', 'CookTime', 'PrepTime', 'TotalTime',
+            'RecipeIngredientParts', 'Calories', 'FatContent',
+            'SaturatedFatContent', 'CholesterolContent', 'SodiumContent',
+            'CarbohydrateContent', 'FiberContent', 'SugarContent',
+            'ProteinContent', 'RecipeInstructions'
+        ]
+        dtype_map = {
+            'Calories': 'float32',
+            'FatContent': 'float32',
+            'SaturatedFatContent': 'float32',
+            'CholesterolContent': 'float32',
+            'SodiumContent': 'float32',
+            'CarbohydrateContent': 'float32',
+            'FiberContent': 'float32',
+            'SugarContent': 'float32',
+            'ProteinContent': 'float32',
+        }
+        dataset = pd.read_csv(
+            _DATASET_PATH,
+            compression='gzip',
+            usecols=usecols,
+            dtype=dtype_map,
         )
     yield
 

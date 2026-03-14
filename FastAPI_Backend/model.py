@@ -27,19 +27,21 @@ def build_pipeline(neigh, scaler, params):
 def extract_ingredient_filtered_data(dataframe, ingredients):
     """Filter recipes to those containing all specified ingredients.
 
-    Uses the pre-processed '_ingredients_parsed' frozenset column (built once at
-    startup in main.py) for fast substring matching without regex overhead. Each
-    query term is checked against every ingredient name via a simple 'in' test,
-    so "chicken" matches "chicken breast", "chicken thigh", etc.
+    Uses case-insensitive substring matching directly on RecipeIngredientParts.
+    This avoids storing preprocessed per-row ingredient sets in memory, which is
+    important for low-memory deployment targets.
     """
     if not ingredients:
         return dataframe
-    queries = [i.lower() for i in ingredients]
-
-    def matches(ingredient_set):
-        return all(any(q in ing for ing in ingredient_set) for q in queries)
-
-    return dataframe[dataframe['_ingredients_parsed'].apply(matches)]
+    filtered = dataframe
+    for ingredient in ingredients:
+        q = (ingredient or "").strip()
+        if not q:
+            continue
+        filtered = filtered[
+            filtered['RecipeIngredientParts'].str.contains(q, case=False, regex=False, na=False)
+        ]
+    return filtered
 
 
 def apply_pipeline(pipeline, _input, extracted_data):
@@ -64,8 +66,7 @@ def extract_quoted_strings(s):
 def output_recommended_recipes(dataframe):
     if dataframe is None:
         return None
-    # Drop the pre-processed helper column — it's a frozenset, not JSON-serializable.
-    output = dataframe.drop(columns=['_ingredients_parsed'], errors='ignore').to_dict("records")
+    output = dataframe.to_dict("records")
     for recipe in output:
         recipe['RecipeIngredientParts'] = extract_quoted_strings(recipe['RecipeIngredientParts'])
         recipe['RecipeInstructions'] = extract_quoted_strings(recipe['RecipeInstructions'])
