@@ -20,6 +20,14 @@ function formatDuration(iso: string): string {
   return total > 0 ? `${total} min` : "—";
 }
 
+const oneDecimalFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
+
+function formatNutritionValue(value: number, key?: keyof Recipe): string {
+  if (!Number.isFinite(value)) return "—";
+  if (key === "Calories") return Math.round(value).toString();
+  return oneDecimalFormatter.format(value);
+}
+
 interface RecipeCardProps {
   recipe: Recipe;
 }
@@ -72,15 +80,15 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
         {/* Nutrition mini-bar */}
         <div className="mb-3 grid grid-cols-3 gap-2 text-xs">
           <div className="rounded-md bg-muted p-2 text-center">
-            <div className="font-semibold text-foreground">{recipe.ProteinContent}g</div>
+            <div className="font-semibold text-foreground">{formatNutritionValue(recipe.ProteinContent)}g</div>
             <div className="text-muted-foreground">Protein</div>
           </div>
           <div className="rounded-md bg-muted p-2 text-center">
-            <div className="font-semibold text-foreground">{recipe.CarbohydrateContent}g</div>
+            <div className="font-semibold text-foreground">{formatNutritionValue(recipe.CarbohydrateContent)}g</div>
             <div className="text-muted-foreground">Carbs</div>
           </div>
           <div className="rounded-md bg-muted p-2 text-center">
-            <div className="font-semibold text-foreground">{recipe.FatContent}g</div>
+            <div className="font-semibold text-foreground">{formatNutritionValue(recipe.FatContent)}g</div>
             <div className="text-muted-foreground">Fat</div>
           </div>
         </div>
@@ -103,7 +111,7 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
                   <div key={col} className="flex justify-between rounded bg-muted px-2 py-1">
                     <span className="text-muted-foreground">{col.replace('Content', '')}</span>
                     <span className="font-medium text-foreground">
-                      {recipe[col as keyof Recipe] as number}{col === 'Calories' ? ' kcal' : 'g'}
+                      {formatNutritionValue(recipe[col as keyof Recipe] as number, col as keyof Recipe)}{col === 'Calories' ? ' kcal' : 'g'}
                     </span>
                   </div>
                 ))}
